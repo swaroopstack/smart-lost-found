@@ -1,0 +1,254 @@
+### =====================================================================
+### Smart Lost & Found - REST Client requests
+### VS Code: install "REST Client" (humao.rest-client) and click "Send Request"
+### Run the demo seed first:  python -m scripts.seed_demo --reset
+### =====================================================================
+
+@host = http://127.0.0.1:8000
+@api = {{host}}/api/v1
+@adminToken = PASTE_ADMIN_TOKEN_HERE
+@studentToken = PASTE_STUDENT_TOKEN_HERE
+
+### Health
+GET {{host}}/health
+
+### Meta (enums, matching weights, upload limits)
+GET {{api}}/meta
+
+### ---------------------------------------------------------------------
+### AUTH
+### ---------------------------------------------------------------------
+
+### Login as admin (JSON - use this one)
+# @name adminLogin
+POST {{api}}/auth/login/json
+Content-Type: application/json
+
+{ "email": "admin@campus.edu", "password": "Admin@123" }
+
+### Login as student
+# @name studentLogin
+POST {{api}}/auth/login/json
+Content-Type: application/json
+
+{ "email": "student@campus.edu", "password": "Student@123" }
+
+### Login (OAuth2 form - what Swagger uses)
+POST {{api}}/auth/login
+Content-Type: application/x-www-form-urlencoded
+
+username=admin@campus.edu&password=Admin@123
+
+### Register a new student
+POST {{api}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "newstudent@campus.edu",
+  "password": "Passw0rd!",
+  "full_name": "New Student",
+  "roll_number": "24BCS99999",
+  "department": "CSE"
+}
+
+### Current user
+GET {{api}}/auth/me
+Authorization: Bearer {{adminToken}}
+
+### ---------------------------------------------------------------------
+### CATALOG
+### ---------------------------------------------------------------------
+
+### All categories
+GET {{api}}/categories
+
+### Category + its form schema
+GET {{api}}/categories/calculator
+
+### Just the fields
+GET {{api}}/categories/bottle/fields
+
+### Location tree
+GET {{api}}/locations/tree
+
+### Search locations
+GET {{api}}/locations?q=Block%20B
+
+### ---------------------------------------------------------------------
+### REPORTS
+### ---------------------------------------------------------------------
+
+### Create a LOST report (matching runs immediately)
+# @name createLost
+POST {{api}}/reports
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{
+  "type": "LOST",
+  "category_key": "calculator",
+  "title": "Black scientific calculator",
+  "public_description": "Black Casio fx-991EX with a small scratch near the display.",
+  "hidden_detail": "Red dragon sticker inside the cover",
+  "attributes": { "brand": "Casio", "colour": "Black", "model": "fx-991EX", "has_case": true },
+  "location_id": 11,
+  "occurred_at": "2026-10-27T09:20:00Z"
+}
+
+### Create a FOUND report (this triggers the match)
+# @name createFound
+POST {{api}}/reports
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{
+  "type": "FOUND",
+  "category_key": "calculator",
+  "title": "Calculator found in Block B",
+  "public_description": "Black scientific calculator, small scratch near the display.",
+  "attributes": { "brand": "Casio", "colour": "Black", "model": "fx-991EX", "has_case": true },
+  "location_id": 11,
+  "occurred_at": "2026-10-27T09:30:00Z",
+  "deposited_location_id": 27
+}
+
+### List my reports
+GET {{api}}/reports?mine=true&page=1&page_size=20
+Authorization: Bearer {{studentToken}}
+
+### Filter: found reports in the library
+GET {{api}}/reports?type=FOUND&q=library
+Authorization: Bearer {{studentToken}}
+
+### Report detail
+GET {{api}}/reports/1
+Authorization: Bearer {{studentToken}}
+
+### Matches for a report (owner or admin)
+GET {{api}}/reports/1/matches
+Authorization: Bearer {{studentToken}}
+
+### Upload a photo
+POST {{api}}/reports/1/photo
+Authorization: Bearer {{studentToken}}
+Content-Type: multipart/form-data; boundary=----Boundary
+
+------Boundary
+Content-Disposition: form-data; name="photo"; filename="calculator.jpg"
+Content-Type: image/jpeg
+
+< ./calculator.jpg
+------Boundary--
+
+### Close a report
+POST {{api}}/reports/1/close
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{ "reason": "Found it myself" }
+
+### ---------------------------------------------------------------------
+### CLAIMS
+### ---------------------------------------------------------------------
+
+### Claim a matched item
+POST {{api}}/claims
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{
+  "match_id": 1,
+  "answers": {
+    "hidden_detail": "red dragon sticker",
+    "questions": [
+      { "q": "What unique marking is on it?", "a": "a red dragon sticker inside the cover" }
+    ]
+  }
+}
+
+### My claims
+GET {{api}}/claims/mine
+Authorization: Bearer {{studentToken}}
+
+### ---------------------------------------------------------------------
+### NOTIFICATIONS
+### ---------------------------------------------------------------------
+
+### My notifications
+GET {{api}}/notifications
+Authorization: Bearer {{studentToken}}
+
+### Unread count
+GET {{api}}/notifications/unread-count
+Authorization: Bearer {{studentToken}}
+
+### Mark all read
+POST {{api}}/notifications/read-all
+Authorization: Bearer {{studentToken}}
+
+### ---------------------------------------------------------------------
+### ADMIN
+### ---------------------------------------------------------------------
+
+### Dashboard counters (24 / 17 / 9 / 6 after seeding)
+GET {{api}}/admin/stats/today
+Authorization: Bearer {{adminToken}}
+
+### Verification queue
+GET {{api}}/admin/verification-queue?limit=10
+Authorization: Bearer {{adminToken}}
+
+### All matches
+GET {{api}}/admin/matches?status=SUGGESTED&min_score=65
+Authorization: Bearer {{adminToken}}
+
+### Match detail WITH score breakdown
+GET {{api}}/admin/matches/1
+Authorization: Bearer {{adminToken}}
+
+### Confirm a match
+POST {{api}}/admin/matches/1/confirm
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "note": "Owner described the sticker correctly" }
+
+### Reject a match
+POST {{api}}/admin/matches/2/reject
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "note": "Different model" }
+
+### Pending claims
+GET {{api}}/admin/claims?status=PENDING
+Authorization: Bearer {{adminToken}}
+
+### Approve a claim
+POST {{api}}/admin/claims/1/approve
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "notes": "Verified at the security desk" }
+
+### Reject a claim
+POST {{api}}/admin/claims/2/reject
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "notes": "Details did not match" }
+
+### Users
+GET {{api}}/admin/users?q=aarav
+Authorization: Bearer {{adminToken}}
+
+### Promote a user to STAFF
+PATCH {{api}}/admin/users/2/role
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "role": "STAFF" }
+
+### Audit log
+GET {{api}}/admin/audit-log
+Authorization: Bearer {{adminToken}}
